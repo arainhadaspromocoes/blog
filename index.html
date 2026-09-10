@@ -318,6 +318,7 @@ function rota(){
 
 /* ---------- tela: lista de posts ---------- */
 function telaLista(){
+  aplicarSeo(null);
   if (posts === null){
     app.innerHTML = `<div class="container">
       <div class="janela"><div class="barra barra-amarela"><span>👑 ${esc(PERFIL.nome)}</span>${controles()}</div>
@@ -326,7 +327,7 @@ function telaLista(){
   }
   const cards = posts.map(function(p, i){
     return `
-    <div class="janela card-post" onclick="location.hash = '#/p/' + encodeURIComponent('${esc(p.id)}')">
+    <div class="janela card-post" onclick="location.hash = '#/p/' + encodeURIComponent('${esc(p.slug || p.id)}')">
       <div class="barra ${CORES_BARRA[i % CORES_BARRA.length]}"><span>📰 ${esc(formatarData(p.criadaEm))}</span>${controles()}</div>
       ${p.img ? `<div class="foto"><img src="${esc(p.img)}" alt="${esc(p.titulo)}" loading="lazy"></div>` : ""}
       <div class="corpo">
@@ -358,9 +359,23 @@ function telaLista(){
 }
 
 /* ---------- tela: post ---------- */
+function aplicarSeo(p){
+  document.title = (p ? p.titulo + " | " : "") + "Blog da Rainha 📰 | A Rainha das Promoções";
+  const desc = p ? (p.metaDesc || resumo(p.texto, 155)) : "Notícias, achados e novidades do mundo das promoções.";
+  const kw = p ? (p.keywords || "") : "";
+  function metaTag(nome, valor){
+    let el = document.querySelector('meta[name="' + nome + '"]');
+    if (!valor){ if (el) el.remove(); return; }
+    if (!el){ el = document.createElement("meta"); el.setAttribute("name", nome); document.head.appendChild(el); }
+    el.setAttribute("content", valor);
+  }
+  metaTag("description", desc);
+  metaTag("keywords", kw);
+}
+
 function telaPost(id){
   if (posts === null){ telaLista(); return; }
-  const p = posts.find(x => x.id === id);
+  const p = posts.find(x => x.slug === id) || posts.find(x => x.id === id);
   if (!p){
     app.innerHTML = `<div class="container">
       <div class="janela">
@@ -371,6 +386,7 @@ function telaPost(id){
     </div>`;
     return;
   }
+  aplicarSeo(p);
   app.innerHTML = `
     <div class="container">
       <div class="janela">
@@ -453,6 +469,15 @@ function telaAdmin(){
           <div class="campo"><label>Foto (opcional)</label>
             <input id="post-foto" type="file" accept="image/*" onchange="fotoEscolhida(this)">
             <div class="dica" id="dica-foto">${fotoAtual || (editando && editando.img) ? "✅ Foto pronta" : "Sem foto por enquanto"}</div></div>
+          <div style="border-top:1.5px dashed rgba(21,21,31,.25);margin:16px 0 12px;padding-top:12px;font-size:13px;font-weight:700">🔎 SEO (opcional — ajuda o Google a achar o post)</div>
+          <div class="campo"><label>Link do post (slug)</label>
+            <input id="post-slug" value="${esc(editando ? (editando.slug || "") : "")}" placeholder="ex.: semana-do-cinema-2026">
+            <div class="dica">Vira o endereço do post. Só letras minúsculas e traços — se deixar vazio, eu crio a partir do título.</div></div>
+          <div class="campo"><label>Meta descrição</label>
+            <input id="post-meta" value="${esc(editando ? (editando.metaDesc || "") : "")}" placeholder="Resuminho de até 160 letras que aparece no Google">
+            <div class="dica">Se deixar vazio, uso o comecinho do texto.</div></div>
+          <div class="campo"><label>Palavras-chave</label>
+            <input id="post-keywords" value="${esc(editando ? (editando.keywords || "") : "")}" placeholder="ex.: semana do cinema 2026, cinema barato, ingresso 10 reais"></div>
           <button class="btn btn-amarelo btn-bloco" onclick="salvarPost()">${editando ? "💾 Salvar alterações" : "🚀 Publicar notícia"}</button>
           ${editando ? `<button class="btn btn-mini btn-bloco" style="margin-top:10px" onclick="cancelarEdicao()">Cancelar edição</button>` : ""}
         </div>
@@ -496,14 +521,24 @@ function cancelarEdicao(){
   fotoAtual = "";
   telaAdmin();
 }
+function normalizarSlug(t){
+  return String(t || "").toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
+}
 function salvarPost(){
   const titulo = document.getElementById("post-titulo").value.trim();
   const texto = document.getElementById("post-texto").value.trim();
   if (!titulo){ toast("Escreve o título 😉"); return; }
   if (!texto){ toast("Escreve o texto da notícia 😉"); return; }
   const editando = editandoId ? (posts || []).find(p => p.id === editandoId) : null;
+  let slug = normalizarSlug(document.getElementById("post-slug").value) || normalizarSlug(titulo);
+  const donoDoSlug = (posts || []).find(p => p.slug === slug && (!editando || p.id !== editando.id));
+  if (donoDoSlug) slug = slug + "-" + Math.random().toString(36).slice(2, 5);
   const dados = {
-    titulo, texto,
+    titulo, texto, slug,
+    metaDesc: document.getElementById("post-meta").value.trim(),
+    keywords: document.getElementById("post-keywords").value.trim(),
     img: fotoAtual || (editando && editando.img) || "",
     atualizadaEm: Date.now()
   };
