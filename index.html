@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog da Rainha 📰 | A Rainha das Promoções</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --azul:#3A4BD8;
+    --tinta:#15151F;
+    --papel:#F2F1EA;
+    --amarelo:#F5C518;
+    --lilas:#A99DF5;
+    --verde:#5FD68F;
+    --rosa:#F2557C;
+    --rosa-claro:#FFD3DE;
+    --borda:2.4px solid var(--tinta);
+    --sombra-g:6px 6px 0 0 var(--tinta);
+    --sombra-m:4px 4px 0 0 var(--tinta);
+    --sombra-p:2px 2px 0 0 var(--tinta);
+    --raio:12px;
+    --raio-btn:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:"Space Grotesk",-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background-color:var(--azul);
+    background-image:
+      linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px);
+    background-size:30px 30px;
+    color:var(--tinta);
+    min-height:100vh;
+  }
+  a{text-decoration:none;color:inherit}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select,textarea{font-family:inherit}
+
+  /* ===== ABAS DO REINO (navegação entre os sites) ===== */
+  .abas-reino{
+    position:sticky;top:0;z-index:60;display:flex;gap:8px;
+    justify-content:flex-start;overflow-x:auto;padding:10px 12px;
+    background:#15151F;box-shadow:0 2px 0 rgba(0,0,0,.35);
+    scrollbar-width:none;
+  }
+  .abas-reino::-webkit-scrollbar{display:none}
+  .abas-reino a{
+    flex:0 0 auto;font-size:13px;font-weight:700;padding:7px 13px;
+    border-radius:999px;color:#F2F1EA;white-space:nowrap;
+    border:2px solid rgba(242,241,234,.25);
+  }
+  .abas-reino a.atual{
+    background:#F5C518;color:#15151F;border-color:#15151F;
+    box-shadow:2px 2px 0 rgba(0,0,0,.45);
+  }
+  @media (min-width:600px){ .abas-reino{justify-content:center} }
+
+  .estrela{position:fixed;font-size:26px;z-index:0;pointer-events:none;opacity:.95;text-shadow:2px 2px 0 rgba(0,0,0,.25)}
+  .e1{top:11%;left:5%}.e2{top:24%;right:6%;font-size:32px}.e3{bottom:18%;left:7%}.e4{bottom:30%;right:5%;font-size:20px}
+
+  .container{max-width:560px;margin:0 auto;padding:22px 16px 40px;position:relative;z-index:1}
+
+  .janela{
+    background:var(--papel);
+    border:var(--borda);
+    border-radius:var(--raio);
+    box-shadow:var(--sombra-g);
+    overflow:hidden;
+    margin-bottom:20px;
+  }
+  .barra{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:7px 12px;border-bottom:var(--borda);
+    font-size:12px;font-weight:700;letter-spacing:.3px;
+  }
+  .barra .controles{display:flex;gap:8px;align-items:center;font-weight:700;font-size:12px;opacity:.85}
+  .barra-lilas{background:var(--lilas)}
+  .barra-verde{background:var(--verde)}
+  .barra-amarela{background:var(--amarelo)}
+  .barra-rosa{background:var(--rosa-claro)}
+  .corpo{padding:16px}
+
+  .hero-titulo{font-size:30px;font-weight:700;text-align:center;line-height:1.2;color:var(--azul)}
+  .hero-titulo .marca-texto{
+    display:inline-block;background:var(--amarelo);color:var(--azul);
+    padding:2px 14px;border-radius:10px;border:var(--borda);box-shadow:var(--sombra-p);
+  }
+  .hero-sub{font-size:14px;font-weight:600;text-align:center;margin-top:10px;line-height:1.5;opacity:.9}
+
+  /* ===== Card de post ===== */
+  .card-post{cursor:pointer;transition:transform .1s}
+  .card-post:active{transform:scale(.985)}
+  .card-post .foto{
+    width:100%;height:210px;background:#fff;border-bottom:var(--borda);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+  }
+  .card-post .foto img{width:100%;height:100%;object-fit:cover}
+  .card-post .titulo{font-size:19px;font-weight:700;line-height:1.3;margin-bottom:8px}
+  .card-post .resumo{font-size:14px;line-height:1.55;opacity:.85;margin-bottom:12px}
+  .card-post .data-post{font-size:12px;font-weight:700;opacity:.6;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+  .ler-mais{
+    display:inline-block;background:var(--amarelo);border:var(--borda);border-radius:var(--raio-btn);
+    box-shadow:var(--sombra-p);font-size:13.5px;font-weight:700;padding:9px 16px;
+  }
+
+  /* ===== Página do post ===== */
+  .post-foto{width:100%;max-height:340px;object-fit:cover;display:block;border-bottom:var(--borda);background:#fff}
+  .post-titulo{font-size:24px;font-weight:700;line-height:1.25;margin-bottom:6px}
+  .post-data{font-size:12.5px;font-weight:700;opacity:.6;margin-bottom:16px;text-transform:uppercase;letter-spacing:.4px}
+  .post-texto{font-size:15.5px;line-height:1.7}
+  .post-texto p{margin-bottom:14px}
+
+  .titulo-secao{
+    color:#fff;font-size:19px;font-weight:700;margin:6px 0 14px;
+    text-shadow:2px 2px 0 rgba(0,0,0,.3);
+  }
+  .vazio{padding:34px 18px;text-align:center;font-size:14.5px;font-weight:600}
+  .vazio .emoji{font-size:38px;display:block;margin-bottom:10px}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--papel);border:var(--borda);border-radius:var(--raio-btn);
+    box-shadow:var(--sombra-m);font-size:14px;font-weight:700;padding:11px 16px;
+    transition:transform .1s, box-shadow .1s;
+  }
+  .btn:active{transform:translate(2px,2px);box-shadow:none}
+  .btn-amarelo{background:var(--amarelo)}
+  .btn-lilas{background:var(--lilas)}
+  .btn-verde{background:var(--verde)}
+  .btn-rosa{background:var(--rosa-claro);color:#B4133F}
+  .btn-bloco{width:100%}
+  .btn-mini{padding:7px 11px;font-size:12.5px;box-shadow:var(--sombra-p)}
+  .btn-mini:active{transform:translate(2px,2px);box-shadow:none}
+
+  /* ===== Painel ===== */
+  .painel-secao{
+    background:var(--papel);border:var(--borda);border-radius:var(--raio);
+    box-shadow:var(--sombra-m);overflow:hidden;margin-bottom:18px;
+  }
+  .painel-secao .conteudo{padding:16px}
+  .painel-secao h3{font-size:15px;font-weight:700;margin-bottom:12px}
+  .campo{margin-bottom:12px}
+  .campo label{display:block;font-size:12px;margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .campo input, .campo textarea{
+    width:100%;padding:11px 12px;border:var(--borda);border-radius:8px;
+    background:#fff;font-size:14.5px;font-weight:500;outline:none;
+  }
+  .campo textarea{min-height:170px;line-height:1.55;resize:vertical}
+  .campo input:focus, .campo textarea:focus{box-shadow:var(--sombra-p)}
+  .campo input::placeholder, .campo textarea::placeholder{color:#999;font-weight:400}
+  .dica{font-size:12px;font-weight:600;opacity:.7;margin-top:4px}
+
+  .linha-post-admin{
+    display:flex;align-items:center;gap:10px;padding:9px 0;
+    border-bottom:1.5px dashed rgba(21,21,31,.2);
+  }
+  .linha-post-admin:last-child{border-bottom:none}
+  .linha-post-admin .mini-foto{
+    width:44px;height:44px;border:2px solid var(--tinta);border-radius:8px;
+    object-fit:cover;background:#fff;flex:0 0 auto;
+  }
+  .linha-post-admin .nome{flex:1;font-size:13px;line-height:1.3;min-width:0;font-weight:600;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .btn-icone{
+    flex:0 0 auto;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+    background:var(--papel);border:2px solid var(--tinta);border-radius:8px;
+    box-shadow:var(--sombra-p);font-size:15px;
+  }
+  .btn-icone:active{transform:translate(2px,2px);box-shadow:none}
+  .btn-icone.perigo{background:var(--rosa-claro);color:#B4133F}
+
+  .rodape{color:#fff;text-align:center;font-size:13px;font-weight:600;padding:8px 0 26px;text-shadow:1px 1px 0 rgba(0,0,0,.3)}
+  .rodape a{text-decoration:underline}
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;background:var(--amarelo);color:var(--tinta);
+    border:var(--borda);border-radius:999px;box-shadow:var(--sombra-p);
+    font-size:13px;font-weight:700;padding:8px 14px;margin:4px;
+  }
+  .icone-insta{width:16px;height:16px}
+
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(12px);
+    background:var(--tinta);color:#fff;font-size:14px;font-weight:600;
+    padding:12px 20px;border-radius:12px;opacity:0;pointer-events:none;
+    transition:opacity .25s, transform .25s;z-index:99;white-space:nowrap;
+  }
+  .toast.mostrar{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<nav class="abas-reino">
+  <a href="https://arainhadaspromocoes.github.io/">🎟️ Cupons ML</a>
+  <a href="https://arainhadaspromocoes.github.io/natura/">🌿 Natura</a>
+  <a href="https://arainhadaspromocoes.github.io/lives/">🔴 Lives</a>
+  <a href="https://arainhadaspromocoes.github.io/blog/" class="atual">📰 Blog</a>
+</nav>
+<span class="estrela e1">✨</span><span class="estrela e2">⭐</span>
+<span class="estrela e3">⭐</span><span class="estrela e4">✨</span>
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* =====================================================
+   BLOG DA RAINHA — notícias e novidades
+   ===================================================== */
+const PERFIL = { nome: "A Rainha das Promoções", instagram: "@arainhadaspromocoes", emoji: "👑" };
+const ADMIN_EMAILS = ["vpthais@gmail.com", "jeanligeiro4@hotmail.com"];
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyA6qO04sAW0nPFKg_z40CRXGAC0x4E70dE",
+  authDomain: "lives-da-rainha.firebaseapp.com",
+  projectId: "lives-da-rainha",
+  storageBucket: "lives-da-rainha.firebasestorage.app",
+  messagingSenderId: "85874306516",
+  appId: "1:85874306516:web:91c45fcfcb65ed602cba41"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+try { db.settings({ ignoreUndefinedProperties: true }); } catch(e){}
+const auth = firebase.auth();
+const COL = db.collection("blog");
+const CORES_BARRA = ["barra-amarela","barra-verde","barra-lilas","barra-rosa"];
+const CHAVE_CACHE = "blog_cache_v1";
+
+let posts = null;
+let usuario = null;
+
+/* ---------- utilitários ---------- */
+function esc(t){
+  return String(t == null ? "" : t)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("mostrar");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove("mostrar"), 2400);
+}
+function controles(){ return `<span class="controles"><span>○</span><span>─</span><span>✕</span></span>`; }
+function formatarData(ts){
+  if (!ts) return "";
+  const d = new Date(ts);
+  const meses = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+  return d.getDate() + " de " + meses[d.getMonth()] + " de " + d.getFullYear();
+}
+function resumo(texto, n){
+  const t = String(texto || "").replace(/\s+/g," ").trim();
+  return t.length <= n ? t : t.slice(0, n).replace(/\s+\S*$/, "") + "…";
+}
+function paragrafos(texto){
+  return String(texto || "").split(/\n{2,}|\n/).map(function(p){
+    p = p.trim();
+    return p ? "<p>" + esc(p) + "</p>" : "";
+  }).join("");
+}
+function comprimirFoto(file, cb){
+  const leitor = new FileReader();
+  leitor.onload = function(){
+    const img = new Image();
+    img.onload = function(){
+      const MAX = 900;
+      let w = img.width, h = img.height;
+      const fator = Math.min(1, MAX / Math.max(w, h));
+      w = Math.round(w * fator); h = Math.round(h * fator);
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      cb(c.toDataURL("image/jpeg", 0.8));
+    };
+    img.src = leitor.result;
+  };
+  leitor.readAsDataURL(file);
+}
+
+/* ---------- dados ---------- */
+function ordenar(arr){
+  arr.sort((a,b) => (b.criadaEm||0) - (a.criadaEm||0));
+  return arr;
+}
+try {
+  const cache = JSON.parse(localStorage.getItem(CHAVE_CACHE) || "null");
+  if (cache && cache.posts) posts = ordenar(cache.posts);
+} catch(e){}
+
+COL.onSnapshot(function(snap){
+  posts = ordenar(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+  try { localStorage.setItem(CHAVE_CACHE, JSON.stringify({ posts })); } catch(e){}
+  rota();
+}, function(err){ console.error(err); });
+
+auth.onAuthStateChanged(function(u){
+  usuario = u;
+  if (location.hash.indexOf("#/admin") === 0) rota();
+});
+
+/* ---------- rotas ---------- */
+const app = document.getElementById("app");
+window.addEventListener("hashchange", rota);
+document.addEventListener("DOMContentLoaded", rota);
+
+function rota(){
+  const h = location.hash || "#/";
+  if (h.indexOf("#/admin") === 0) return telaAdmin();
+  if (h.indexOf("#/p/") === 0) return telaPost(decodeURIComponent(h.slice(4)));
+  telaLista();
+}
+
+/* ---------- tela: lista de posts ---------- */
+function telaLista(){
+  if (posts === null){
+    app.innerHTML = `<div class="container">
+      <div class="janela"><div class="barra barra-amarela"><span>👑 ${esc(PERFIL.nome)}</span>${controles()}</div>
+      <div class="vazio"><div class="emoji">⏳</div>Carregando as notícias...</div></div></div>`;
+    return;
+  }
+  const cards = posts.map(function(p, i){
+    return `
+    <div class="janela card-post" onclick="location.hash = '#/p/' + encodeURIComponent('${esc(p.id)}')">
+      <div class="barra ${CORES_BARRA[i % CORES_BARRA.length]}"><span>📰 ${esc(formatarData(p.criadaEm))}</span>${controles()}</div>
+      ${p.img ? `<div class="foto"><img src="${esc(p.img)}" alt="${esc(p.titulo)}" loading="lazy"></div>` : ""}
+      <div class="corpo">
+        <div class="titulo">${esc(p.titulo)}</div>
+        <div class="resumo">${esc(resumo(p.texto, 150))}</div>
+        <span class="ler-mais">Ler a notícia ▸</span>
+      </div>
+    </div>`;
+  }).join("");
+
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela">
+        <div class="barra barra-lilas"><span>👑 ${esc(PERFIL.nome)}</span>${controles()}</div>
+        <div class="corpo" style="padding:24px 16px 22px">
+          <div class="hero-titulo">📰 BLOG DA <span class="marca-texto">RAINHA</span></div>
+          <div class="hero-sub">Notícias, achados e novidades do mundo das promoções. Volte sempre! 👑</div>
+        </div>
+      </div>
+      ${posts.length ? cards : `
+      <div class="janela"><div class="barra barra-verde"><span>📰 Já vem</span>${controles()}</div>
+        <div class="vazio"><div class="emoji">📰</div>As primeiras notícias chegam daqui a pouco!</div></div>`}
+    </div>
+    <div class="rodape">
+      <a class="chip" href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener"><svg class="icone-insta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.8" cy="6.2" r="1.4" fill="currentColor" stroke="none"/></svg> ${esc(PERFIL.instagram)}</a>
+      <div style="margin-top:14px">Feito com 💛 por ${esc(PERFIL.nome)} · <a href="#/admin" title="Painel de edição">🔐</a></div>
+    </div>`;
+  window.scrollTo(0, 0);
+}
+
+/* ---------- tela: post ---------- */
+function telaPost(id){
+  if (posts === null){ telaLista(); return; }
+  const p = posts.find(x => x.id === id);
+  if (!p){
+    app.innerHTML = `<div class="container">
+      <div class="janela">
+        <div class="barra barra-rosa"><span>🔎 Ops!</span>${controles()}</div>
+        <div class="vazio"><div class="emoji">🔎</div>Essa notícia não está disponível.<br><br>
+        <a class="btn btn-amarelo" href="#/">◀ Ver todas as notícias</a></div>
+      </div>
+    </div>`;
+    return;
+  }
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela">
+        <div class="barra barra-amarela"><span>📰 Blog da Rainha</span>${controles()}</div>
+        ${p.img ? `<img class="post-foto" src="${esc(p.img)}" alt="${esc(p.titulo)}">` : ""}
+        <div class="corpo">
+          <div class="post-titulo">${esc(p.titulo)}</div>
+          <div class="post-data">${esc(formatarData(p.criadaEm))}</div>
+          <div class="post-texto">${paragrafos(p.texto)}</div>
+        </div>
+      </div>
+      <a class="btn btn-amarelo btn-bloco" href="#/">◀ Ver todas as notícias</a>
+    </div>
+    <div class="rodape">
+      <div>Feito com 💛 por ${esc(PERFIL.nome)}</div>
+    </div>`;
+  window.scrollTo(0, 0);
+}
+
+/* ---------- tela: admin ---------- */
+let editandoId = null;
+let fotoAtual = "";
+
+function ehAdmin(){
+  return !!(usuario && ADMIN_EMAILS.indexOf(String(usuario.email || "").toLowerCase()) !== -1);
+}
+function telaAdmin(){
+  if (!usuario){
+    app.innerHTML = `<div class="container">
+      <div class="janela">
+        <div class="barra barra-lilas"><span>🔐 Painel do Blog</span>${controles()}</div>
+        <div class="vazio"><div class="emoji">🔐</div>Entre com a conta autorizada pra editar o blog.<br><br>
+          <button class="btn btn-amarelo" onclick="entrar()">Entrar com Google</button></div>
+      </div>
+    </div>`;
+    return;
+  }
+  if (!ehAdmin()){
+    app.innerHTML = `<div class="container">
+      <div class="janela">
+        <div class="barra barra-rosa"><span>🔐 Painel do Blog</span>${controles()}</div>
+        <div class="vazio"><div class="emoji">🙅‍♀️</div>Essa conta (${esc(usuario.email || "")}) não tem permissão.<br><br>
+          <button class="btn btn-rosa" onclick="sair()">Sair</button></div>
+      </div>
+    </div>`;
+    return;
+  }
+  const lista = posts || [];
+  const editando = editandoId ? lista.find(p => p.id === editandoId) : null;
+  const linhas = lista.map(function(p){
+    return `
+    <div class="linha-post-admin">
+      ${p.img ? `<img class="mini-foto" src="${esc(p.img)}">` : `<div class="mini-foto" style="display:flex;align-items:center;justify-content:center">📰</div>`}
+      <div class="nome">${esc(p.titulo)}</div>
+      <button class="btn-icone" title="Editar" onclick="editarPost('${esc(p.id)}')">✏️</button>
+      <button class="btn-icone perigo" title="Excluir" onclick="excluirPost('${esc(p.id)}')">🗑️</button>
+    </div>`;
+  }).join("");
+
+  app.innerHTML = `
+    <div class="container">
+      <div class="janela">
+        <div class="barra barra-lilas"><span>🔐 Painel do Blog</span>${controles()}</div>
+        <div class="corpo" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div style="font-size:13px;font-weight:600">Oi, ${esc((usuario.displayName || usuario.email || "").split(" ")[0])}! 👑</div>
+          <div style="display:flex;gap:8px">
+            <a class="btn btn-mini" href="#/">Ver o blog</a>
+            <button class="btn btn-mini btn-rosa" onclick="sair()">Sair</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="painel-secao">
+        <div class="barra barra-amarela"><span>${editando ? "✏️ Editar notícia" : "📝 Nova notícia"}</span>${controles()}</div>
+        <div class="conteudo">
+          <div class="campo"><label>Título</label>
+            <input id="post-titulo" value="${esc(editando ? editando.titulo : "")}" placeholder="Ex.: Semana do cliente chegou com tudo!"></div>
+          <div class="campo"><label>Texto</label>
+            <textarea id="post-texto" placeholder="Escreva a notícia aqui... Pule uma linha pra separar os parágrafos.">${esc(editando ? editando.texto : "")}</textarea></div>
+          <div class="campo"><label>Foto (opcional)</label>
+            <input id="post-foto" type="file" accept="image/*" onchange="fotoEscolhida(this)">
+            <div class="dica" id="dica-foto">${fotoAtual || (editando && editando.img) ? "✅ Foto pronta" : "Sem foto por enquanto"}</div></div>
+          <button class="btn btn-amarelo btn-bloco" onclick="salvarPost()">${editando ? "💾 Salvar alterações" : "🚀 Publicar notícia"}</button>
+          ${editando ? `<button class="btn btn-mini btn-bloco" style="margin-top:10px" onclick="cancelarEdicao()">Cancelar edição</button>` : ""}
+        </div>
+      </div>
+
+      <div class="painel-secao">
+        <div class="barra barra-verde"><span>📚 Notícias publicadas (${lista.length})</span>${controles()}</div>
+        <div class="conteudo">
+          ${lista.length ? linhas : `<div style="font-size:13px;font-weight:500;padding:6px 0 10px">Nenhuma notícia ainda — publica a primeira!</div>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function entrar(){
+  auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(function(e){
+    if (e && e.code !== "auth/popup-closed-by-user") toast("Não consegui entrar 😕");
+  });
+}
+function sair(){ auth.signOut(); }
+
+function fotoEscolhida(input){
+  const f = input.files && input.files[0];
+  if (!f) return;
+  toast("Ajeitando a foto… 📷");
+  comprimirFoto(f, function(dataURL){
+    fotoAtual = dataURL;
+    const d = document.getElementById("dica-foto");
+    if (d) d.textContent = "✅ Foto pronta";
+    toast("Foto pronta! ✅");
+  });
+}
+function editarPost(id){
+  editandoId = id;
+  fotoAtual = "";
+  telaAdmin();
+  window.scrollTo(0, 0);
+}
+function cancelarEdicao(){
+  editandoId = null;
+  fotoAtual = "";
+  telaAdmin();
+}
+function salvarPost(){
+  const titulo = document.getElementById("post-titulo").value.trim();
+  const texto = document.getElementById("post-texto").value.trim();
+  if (!titulo){ toast("Escreve o título 😉"); return; }
+  if (!texto){ toast("Escreve o texto da notícia 😉"); return; }
+  const editando = editandoId ? (posts || []).find(p => p.id === editandoId) : null;
+  const dados = {
+    titulo, texto,
+    img: fotoAtual || (editando && editando.img) || "",
+    atualizadaEm: Date.now()
+  };
+  let promessa;
+  if (editando){
+    promessa = COL.doc(editando.id).update(dados);
+  } else {
+    dados.criadaEm = Date.now();
+    promessa = COL.add(dados);
+  }
+  promessa.then(function(){
+    toast(editando ? "Notícia atualizada! ✅" : "Notícia publicada! 🚀");
+    editandoId = null;
+    fotoAtual = "";
+  }).catch(function(err){
+    console.error(err);
+    toast(err && err.code === "permission-denied" ? "Sem permissão — entre com a conta certa 🔒" : "Erro ao salvar 😕");
+  });
+}
+function excluirPost(id){
+  const p = (posts || []).find(x => x.id === id);
+  if (!p) return;
+  if (!confirm('Excluir a notícia "' + p.titulo + '"?')) return;
+  COL.doc(id).delete().then(function(){
+    toast("Notícia excluída 🗑️");
+  }).catch(function(err){
+    console.error(err);
+    toast("Erro ao excluir 😕");
+  });
+}
+</script>
+</body>
+</html>
