@@ -226,6 +226,8 @@
   }
   .rodape{color:#fff;text-align:center;font-size:13px;font-weight:600;padding:8px 16px 96px;text-shadow:1px 1px 0 rgba(0,0,0,.3)}
   .rodape a{text-decoration:underline}
+  .credito{display:inline-flex;align-items:center;gap:5px;vertical-align:-2px}
+  .credito svg{width:15px;height:15px;flex:0 0 auto}
   .chip{
     display:inline-flex;align-items:center;gap:7px;background:var(--amarelo);color:var(--tinta);
     border:var(--borda);border-radius:999px;box-shadow:var(--sombra-p);
@@ -446,7 +448,7 @@ function telaLista(){
     </div>
     <div class="rodape">
       <a class="chip" href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener"><svg class="icone-insta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.8" cy="6.2" r="1.4" fill="currentColor" stroke="none"/></svg> ${esc(PERFIL.instagram)}</a>
-      <div style="margin-top:14px">Feito com 💛 por <a href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener">${esc(PERFIL.instagram)}</a> · <a href="#/admin" title="Painel de edição">🔐</a></div>
+      <div style="margin-top:14px">Feito por <a class="credito" href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.8" cy="6.2" r="1.4" fill="currentColor" stroke="none"/></svg> A Rainha das Promoções</a> · <a href="#/admin" title="Painel de edição">🔐</a></div>
     </div>
     <a class="zap-flutuante" href="${LINK_GRUPO_ZAP}" target="_blank" rel="noopener">💬 Ofertas no WhatsApp</a>`;
   window.scrollTo(0, 0);
@@ -498,7 +500,7 @@ function telaPost(id){
       <a class="btn btn-amarelo btn-bloco" style="margin-top:12px" href="#/">◀ Ver todas as notícias</a>
     </div>
     <div class="rodape">
-      <div>Feito com 💛 por <a href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener">${esc(PERFIL.instagram)}</a></div>
+      <div>Feito por <a class="credito" href="https://instagram.com/arainhadaspromocoes" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.8" cy="6.2" r="1.4" fill="currentColor" stroke="none"/></svg> A Rainha das Promoções</a></div>
     </div>
     <a class="zap-flutuante" href="${LINK_GRUPO_ZAP}" target="_blank" rel="noopener">💬 Ofertas no WhatsApp</a>`;
   window.scrollTo(0, 0);
