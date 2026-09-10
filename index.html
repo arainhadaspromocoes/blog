@@ -115,6 +115,27 @@
   .post-data{font-size:12.5px;font-weight:700;opacity:.6;margin-bottom:16px;text-transform:uppercase;letter-spacing:.4px}
   .post-texto{font-size:15.5px;line-height:1.7}
   .post-texto p{margin-bottom:14px}
+  .post-texto h3{
+    font-size:19px;font-weight:700;color:var(--azul);
+    margin:26px 0 12px;padding-left:12px;
+    border-left:6px solid var(--amarelo);line-height:1.3;
+  }
+  .post-texto h4{font-size:16px;font-weight:700;margin:20px 0 8px;line-height:1.3}
+  .post-texto ul{list-style:none;margin:0 0 16px;padding:0}
+  .post-texto ul li{
+    position:relative;padding-left:22px;margin-bottom:9px;line-height:1.6;
+  }
+  .post-texto ul li::before{
+    content:"";position:absolute;left:2px;top:9px;width:9px;height:9px;
+    background:var(--amarelo);border:2px solid var(--tinta);border-radius:3px;
+  }
+  .post-texto .destaque-post{
+    background:#FFF3C4;border:var(--borda);border-radius:10px;
+    box-shadow:var(--sombra-p);padding:12px 14px;margin:0 0 16px;
+    font-weight:600;line-height:1.6;
+  }
+  .post-texto a{color:var(--azul);text-decoration:underline;word-break:break-all}
+  .post-texto strong{font-weight:700}
 
   .titulo-secao{
     color:#fff;font-size:19px;font-weight:700;margin:6px 0 14px;
@@ -255,11 +276,36 @@ function resumo(texto, n){
   const t = String(texto || "").replace(/\s+/g," ").trim();
   return t.length <= n ? t : t.slice(0, n).replace(/\s+\S*$/, "") + "…";
 }
+function linhaRica(t){
+  /* negrito com **assim** + links clicaveis */
+  let h = esc(t);
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/(https?:\/\/[^\s<]+)/g, function(u){
+    return '<a href="' + u + '" target="_blank" rel="noopener">' + u + '</a>';
+  });
+  return h;
+}
 function paragrafos(texto){
-  return String(texto || "").split(/\n{2,}|\n/).map(function(p){
-    p = p.trim();
-    return p ? "<p>" + esc(p) + "</p>" : "";
-  }).join("");
+  const linhas = String(texto || "").split(/\n/);
+  let html = "", lista = [];
+  function fechaLista(){
+    if (lista.length){
+      html += "<ul>" + lista.map(function(i){ return "<li>" + linhaRica(i) + "</li>"; }).join("") + "</ul>";
+      lista = [];
+    }
+  }
+  for (let i = 0; i < linhas.length; i++){
+    const l = linhas[i].trim();
+    if (!l){ fechaLista(); continue; }
+    if (l.indexOf("### ") === 0){ fechaLista(); html += "<h4>" + linhaRica(l.slice(4)) + "</h4>"; continue; }
+    if (l.indexOf("## ") === 0){ fechaLista(); html += "<h3>" + linhaRica(l.slice(3)) + "</h3>"; continue; }
+    if (l.indexOf("- ") === 0 || l.indexOf("• ") === 0){ lista.push(l.slice(2)); continue; }
+    if (l.indexOf("> ") === 0){ fechaLista(); html += '<div class="destaque-post">' + linhaRica(l.slice(2)) + "</div>"; continue; }
+    fechaLista();
+    html += "<p>" + linhaRica(l) + "</p>";
+  }
+  fechaLista();
+  return html;
 }
 function comprimirFoto(file, cb){
   const leitor = new FileReader();
@@ -465,7 +511,8 @@ function telaAdmin(){
           <div class="campo"><label>Título</label>
             <input id="post-titulo" value="${esc(editando ? editando.titulo : "")}" placeholder="Ex.: Semana do cliente chegou com tudo!"></div>
           <div class="campo"><label>Texto</label>
-            <textarea id="post-texto" placeholder="Escreva a notícia aqui... Pule uma linha pra separar os parágrafos.">${esc(editando ? editando.texto : "")}</textarea></div>
+            <textarea id="post-texto" placeholder="Escreva a notícia aqui... Pule uma linha pra separar os parágrafos.">${esc(editando ? editando.texto : "")}</textarea>
+            <div class="dica">Truques: <b>## Subtítulo</b> vira título de seção · <b>### Menor</b> vira subtítulo · linha começando com <b>- </b> vira lista · <b>**palavra**</b> fica em negrito · linha começando com <b>&gt; </b> vira caixinha de destaque.</div></div>
           <div class="campo"><label>Foto (opcional)</label>
             <input id="post-foto" type="file" accept="image/*" onchange="fotoEscolhida(this)">
             <div class="dica" id="dica-foto">${fotoAtual || (editando && editando.img) ? "✅ Foto pronta" : "Sem foto por enquanto"}</div></div>
