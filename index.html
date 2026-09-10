@@ -191,6 +191,29 @@
   .campo input::placeholder, .campo textarea::placeholder{color:#999;font-weight:400}
   .dica{font-size:12px;font-weight:600;opacity:.7;margin-top:4px}
 
+  .aud-online{
+    display:flex;align-items:center;gap:10px;background:var(--verde);color:var(--tinta);
+    border:var(--borda);border-radius:14px;box-shadow:var(--sombra-p);
+    padding:12px 14px;font-size:15px;font-weight:800;margin-bottom:12px;
+  }
+  .aud-online .bolinha{
+    width:11px;height:11px;border-radius:50%;background:#0d8b46;flex:0 0 auto;
+    animation:pisca 1.6s ease-in-out infinite;
+  }
+  @keyframes pisca{0%,100%{opacity:1}50%{opacity:.25}}
+  .aud-linha{
+    display:flex;align-items:center;gap:10px;padding:9px 2px;
+    border-bottom:1.5px dashed rgba(21,21,31,.2);font-size:13px;font-weight:600;
+  }
+  .aud-linha:last-child{border-bottom:0}
+  .aud-linha .nome{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .aud-num{
+    background:var(--amarelo);border:1.8px solid var(--tinta);border-radius:999px;
+    padding:2px 10px;font-size:12px;font-weight:800;flex:0 0 auto;
+  }
+  .aud-num.cinza{background:#e7e6dd}
+  .aud-titulinho{font-size:12px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;opacity:.6;margin:14px 0 4px}
+
   .linha-post-admin{
     display:flex;align-items:center;gap:10px;padding:9px 0;
     border-bottom:1.5px dashed rgba(21,21,31,.2);
@@ -275,6 +298,8 @@ const db = firebase.firestore();
 try { db.settings({ ignoreUndefinedProperties: true }); } catch(e){}
 const auth = firebase.auth();
 const COL = db.collection("blog");
+const COL_VISITAS = db.collection("visitas");
+const COL_ONLINE = db.collection("online");
 const CORES_BARRA = ["barra-amarela","barra-verde","barra-lilas","barra-rosa"];
 const CHAVE_CACHE = "blog_cache_v1";
 const LINK_GRUPO_ZAP = "https://chat.whatsapp.com/I6zDcwnyncMFooEi5vsbw3";
@@ -396,6 +421,9 @@ COL.onSnapshot(function(snap){
 
 auth.onAuthStateChanged(function(u){
   usuario = u;
+  if (ehAdmin()){
+    try { localStorage.setItem("rainha_naocontar", "1"); } catch(e){}
+  }
   if (location.hash.indexOf("#/admin") === 0) rota();
 });
 
@@ -404,10 +432,18 @@ const app = document.getElementById("app");
 window.addEventListener("hashchange", rota);
 document.addEventListener("DOMContentLoaded", rota);
 
+let chavePagAtual = "";
+function marcarPagina(k){
+  if (!k || k === chavePagAtual) return;
+  chavePagAtual = k;
+  try { if (window.registrarPagina) window.registrarPagina(k); } catch(e){}
+}
+
 function rota(){
   const h = location.hash || "#/";
   if (h.indexOf("#/admin") === 0) return telaAdmin();
   if (h.indexOf("#/p/") === 0) return telaPost(decodeURIComponent(h.slice(4)));
+  marcarPagina("blog");
   telaLista();
 }
 
@@ -483,6 +519,7 @@ function telaPost(id){
     return;
   }
   if (p.paginaPropria && p.slug){ location.replace("p/" + p.slug + "/"); return; }
+  marcarPagina("post_" + (p.slug || p.id));
   aplicarSeo(p);
   app.innerHTML = `
     <div class="container">
@@ -512,6 +549,112 @@ let fotoAtual = "";
 
 function ehAdmin(){
   return !!(usuario && ADMIN_EMAILS.indexOf(String(usuario.email || "").toLowerCase()) !== -1);
+}
+
+/* ---------- audiência ---------- */
+let timerAud = null;
+
+function nomeDaPagina(k){
+  const fixos = {
+    ml: "🛒 Cupons Mercado Livre",
+    natura: "🌿 Cupons Natura",
+    lives: "🎥 Lives",
+    blog: "📰 Blog (página inicial)"
+  };
+  if (fixos[k]) return fixos[k];
+  if (k.indexOf("post_") === 0){
+    const slug = k.slice(5);
+    const p = (posts || []).find(x => (x.slug || x.id) === slug);
+    return "📄 " + (p ? p.titulo : slug.replace(/-/g, " "));
+  }
+  return k;
+}
+function ehPost(k){ return String(k).indexOf("post_") === 0; }
+
+function blocoAudiencia(){
+  return `
+    <div class="painel-secao" id="secao-audiencia">
+      <div class="barra barra-verde"><span>📊 Audiência</span>${controles()}</div>
+      <div class="conteudo" id="corpo-audiencia">
+        <div style="font-size:13px;font-weight:600;padding:6px 0">⏳ Contando as pessoas...</div>
+      </div>
+    </div>`;
+}
+
+function ligarAudiencia(){
+  atualizarAudiencia();
+  if (timerAud) clearInterval(timerAud);
+  timerAud = setInterval(function(){
+    if (!document.getElementById("corpo-audiencia")){ clearInterval(timerAud); timerAud = null; return; }
+    if (!document.hidden) atualizarAudiencia();
+  }, 30000);
+}
+
+function atualizarAudiencia(){
+  const alvo = document.getElementById("corpo-audiencia");
+  if (!alvo) return;
+  Promise.all([COL_VISITAS.get(), COL_ONLINE.get()]).then(function(res){
+    if (!document.getElementById("corpo-audiencia")) return;
+    const visitas = res[0].docs.map(d => Object.assign({ id: d.id }, d.data()));
+    const agora = Date.now();
+    const online = [];
+    const lixo = [];
+    res[1].docs.forEach(function(d){
+      const dd = d.data() || {};
+      const t = (dd.t && dd.t.toMillis) ? dd.t.toMillis() : 0;
+      const idade = agora - t;
+      if (idade < 150000) online.push(String(dd.p || "site"));
+      else if (idade > 900000) lixo.push(d.ref);
+    });
+    lixo.slice(0, 80).forEach(function(r){ r.delete().catch(function(){}); });
+    desenharAudiencia(visitas, online);
+  }).catch(function(e){
+    console.error(e);
+    const a = document.getElementById("corpo-audiencia");
+    if (a) a.innerHTML = `<div style="font-size:13px;font-weight:600;padding:6px 0">😕 Não consegui ler os números agora. Tenta de novo daqui a pouco.</div>`;
+  });
+}
+
+function desenharAudiencia(visitas, online){
+  const alvo = document.getElementById("corpo-audiencia");
+  if (!alvo) return;
+  const hoje = window.chaveHoje ? window.chaveHoje() : "";
+  function num(k){
+    const d = visitas.find(v => v.id === k);
+    return d ? { hoje: Number(d[hoje] || 0), total: Number(d.total || 0) } : { hoje: 0, total: 0 };
+  }
+  const porPag = {};
+  online.forEach(function(p){ porPag[p] = (porPag[p] || 0) + 1; });
+  const listaOnline = Object.keys(porPag).sort((a, b) => porPag[b] - porPag[a]).map(function(k){
+    return `<div class="aud-linha"><div class="nome">${esc(nomeDaPagina(k))}</div><span class="aud-num">${porPag[k]}</span></div>`;
+  }).join("");
+
+  const SITES = ["blog", "ml", "natura", "lives"];
+  const linhasSites = SITES.map(function(k){
+    const n = num(k);
+    return `<div class="aud-linha"><div class="nome">${esc(nomeDaPagina(k))}</div><span class="aud-num">${n.hoje} hoje</span><span class="aud-num cinza">${n.total} no total</span></div>`;
+  }).join("");
+
+  const materias = visitas.filter(v => ehPost(v.id))
+    .map(v => ({ id: v.id, hoje: Number(v[hoje] || 0), total: Number(v.total || 0) }))
+    .sort((a, b) => b.total - a.total);
+  const linhasMat = materias.length
+    ? materias.map(function(m){
+        return `<div class="aud-linha"><div class="nome">${esc(nomeDaPagina(m.id))}</div><span class="aud-num">${m.hoje} hoje</span><span class="aud-num cinza">${m.total} leituras</span></div>`;
+      }).join("")
+    : `<div style="font-size:13px;font-weight:500;padding:6px 0">Nenhuma leitura registrada ainda — os números começam a aparecer assim que alguém abrir uma matéria.</div>`;
+
+  const somaHoje = SITES.reduce((s, k) => s + num(k).hoje, 0) + materias.reduce((s, m) => s + m.hoje, 0);
+  const q = online.length;
+
+  alvo.innerHTML = `
+    <div class="aud-online"><span class="bolinha"></span>${q} ${q === 1 ? "pessoa" : "pessoas"} nos seus sites agora</div>
+    ${listaOnline ? `<div class="aud-titulinho">Onde elas estão</div>${listaOnline}` : ""}
+    <div class="aud-titulinho">Visitas por site</div>
+    ${linhasSites}
+    <div class="aud-titulinho">Matérias mais lidas</div>
+    ${linhasMat}
+    <div class="dica" style="margin-top:14px">Hoje somando tudo: <b>${somaHoje}</b> visitas · a lista se atualiza sozinha a cada 30 segundos · as suas próprias visitas não entram na conta.</div>`;
 }
 function telaAdmin(){
   if (!usuario){
@@ -559,6 +702,8 @@ function telaAdmin(){
         </div>
       </div>
 
+      ${blocoAudiencia()}
+
       <div class="painel-secao">
         <div class="barra barra-amarela"><span>${editando ? "✏️ Editar notícia" : "📝 Nova notícia"}</span>${controles()}</div>
         <div class="conteudo">
@@ -591,6 +736,8 @@ function telaAdmin(){
         </div>
       </div>
     </div>`;
+
+  ligarAudiencia();
 }
 
 function entrar(){
@@ -670,6 +817,103 @@ function excluirPost(id){
     toast("Erro ao excluir 😕");
   });
 }
+</script>
+<!-- ===== catraca da Rainha: conta visitas e quem está online ===== -->
+<script>
+(function(){
+  var PROJ = "lives-da-rainha";
+  var KEY  = "AIzaSyA6qO04sAW0nPFKg_z40CRXGAC0x4E70dE";
+  var RAIZ = "projects/" + PROJ + "/databases/(default)/documents";
+  var COMMIT = "https://firestore.googleapis.com/v1/" + RAIZ + ":commit?key=" + KEY;
+  var vivo = null, meuId = null, minhaPag = "site", ligado = false;
+
+  function pular(){
+    try { return localStorage.getItem("rainha_naocontar") === "1"; } catch(e){ return false; }
+  }
+  function limpar(k){
+    return String(k || "site").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 100) || "site";
+  }
+  function diaHoje(){
+    var d = new Date(), m = d.getMonth() + 1, x = d.getDate();
+    return "d_" + d.getFullYear() + (m < 10 ? "0" : "") + m + (x < 10 ? "0" : "") + x;
+  }
+  function mandar(corpo){
+    try {
+      return fetch(COMMIT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo)
+      }).catch(function(){});
+    } catch(e){}
+  }
+  function idSessao(){
+    try {
+      var s = sessionStorage.getItem("rainha_sid");
+      if (!s){
+        s = "v" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        sessionStorage.setItem("rainha_sid", s);
+      }
+      return s;
+    } catch(e){ return "v" + Math.random().toString(36).slice(2, 10); }
+  }
+
+  /* conta 1 visita por aba/sessão em cada página */
+  function contarVisita(chave){
+    if (pular()) return;
+    var k = limpar(chave);
+    try {
+      if (sessionStorage.getItem("rainha_visto_" + k)) return;
+      sessionStorage.setItem("rainha_visto_" + k, "1");
+    } catch(e){}
+    mandar({ writes: [{
+      update: { name: RAIZ + "/visitas/" + k, fields: {} },
+      updateMask: { fieldPaths: ["__vazio__"] },
+      updateTransforms: [
+        { fieldPath: "total",   increment: { integerValue: "1" } },
+        { fieldPath: diaHoje(), increment: { integerValue: "1" } },
+        { fieldPath: "ultima",  setToServerValue: "REQUEST_TIME" }
+      ]
+    }]});
+  }
+
+  /* presença: bate ponto a cada ~55s enquanto a aba estiver aberta */
+  function baterPonto(){
+    if (pular() || !meuId) return;
+    mandar({ writes: [{
+      update: { name: RAIZ + "/online/" + meuId, fields: { p: { stringValue: minhaPag } } },
+      updateTransforms: [{ fieldPath: "t", setToServerValue: "REQUEST_TIME" }]
+    }]});
+  }
+  function sairDoAr(){
+    if (!meuId) return;
+    var corpo = JSON.stringify({ writes: [{ "delete": RAIZ + "/online/" + meuId }] });
+    try {
+      if (navigator.sendBeacon){
+        navigator.sendBeacon(COMMIT, new Blob([corpo], { type: "application/json" }));
+        return;
+      }
+    } catch(e){}
+    mandar({ writes: [{ "delete": RAIZ + "/online/" + meuId }] });
+  }
+  function marcarPresenca(pagina){
+    if (pular()) return;
+    minhaPag = limpar(pagina);
+    meuId = idSessao();
+    baterPonto();
+    if (vivo) clearInterval(vivo);
+    vivo = setInterval(function(){ if (!document.hidden) baterPonto(); }, 55000);
+    if (!ligado){
+      ligado = true;
+      window.addEventListener("pagehide", sairDoAr);
+      document.addEventListener("visibilitychange", function(){ if (!document.hidden) baterPonto(); });
+    }
+  }
+
+  window.chaveHoje = diaHoje;
+  window.contarVisita = contarVisita;
+  window.marcarPresenca = marcarPresenca;
+  window.registrarPagina = function(chave){ contarVisita(chave); marcarPresenca(chave); };
+})();
 </script>
 </body>
 </html>
